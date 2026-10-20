@@ -15,6 +15,8 @@ import Inventory from "@/pages/Inventory";
 import Customers from "@/pages/Customers";
 import BarcodeManagement from "@/pages/BarcodeManagement";
 import Reports from "@/pages/Reports";
+import Sales from "@/pages/Sales";
+import Receipts from "@/pages/Receipts";
 
 function HomeRedirect() {
   const { isAuthenticated, loading } = useAuth();
@@ -98,7 +100,16 @@ export default function App() {
               }
             />
 
-            {/* Add your other protected routes here */}
+            <Route path="/sales" element={<PermissionRoute permission="sales.view"><Sales /></PermissionRoute>} />
+
+            <Route
+              path="/receipts"
+              element={
+                <PermissionRoute permission="receipts.view">
+                  <Receipts />
+                </PermissionRoute>
+              }
+            />
           </Route>
         </Route>
 

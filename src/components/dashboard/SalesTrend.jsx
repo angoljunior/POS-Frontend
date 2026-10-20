@@ -8,10 +8,10 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-import { weeklySales } from "@/data/dashboardData";
-import { Button } from "@/components/ui/button";
 
-export default function SalesTrend({ data = weeklySales }) {
+
+
+export default function SalesTrend({ data = [] }) {
   return (
     <section className="flex h-[292px] min-w-0 flex-col border border-[#ded6d6] bg-white p-3">
       <div className="mb-3 flex items-center justify-between border-b border-[#eee] pb-2">
@@ -19,13 +19,13 @@ export default function SalesTrend({ data = weeklySales }) {
           Sales Trend (Weekly)
         </h2>
 
-        <Button
+        <span
           variant="outline"
           size="sm"
           className="h-[25px] rounded-none px-2 text-[10px]"
         >
-          This Week
-        </Button>
+          Last 7 days · GHS
+        </span>
       </div>
 
       <div className="min-h-0 flex-1 border border-[#e6e0e0] p-2">
@@ -51,12 +51,12 @@ export default function SalesTrend({ data = weeklySales }) {
               tick={{ fontSize: 10 }}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(value) => `$${value}`}
+              tickFormatter={(value) => `${value}`}
             />
 
             <Tooltip
               formatter={(value) => [
-                `$${Number(value).toLocaleString()}`,
+                `GHS ${Number(value).toLocaleString()}`,
                 "Sales",
               ]}
             />

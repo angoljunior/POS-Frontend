@@ -29,7 +29,7 @@ export default function POSCurrentOrder({
         <button
           type="button"
           onClick={onClear}
-          disabled={cart.length === 0}
+          disabled={cart.length === 0 || isProcessing}
           aria-label="Clear current order"
           title="Clear Order"
           className="text-red-600 hover:text-red-800 disabled:opacity-30"

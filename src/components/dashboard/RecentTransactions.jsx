@@ -1,6 +1,6 @@
 import { Eye } from "lucide-react";
 import { Link } from "react-router-dom";
-import { recentTransactions } from "@/data/dashboardData";
+
 
 const statusStyles = {
   COMPLETED: "border-black bg-white text-black",
@@ -9,9 +9,9 @@ const statusStyles = {
 };
 
 export default function RecentTransactions({
-  transactions = recentTransactions,
+  transactions = [],
 }) {
-  const formatMoney = (value) => `$${Number(value).toFixed(2)}`;
+  const formatMoney = (value) => `GHS ${Number(value).toFixed(2)}`;
 
   return (
     <section className="overflow-hidden border border-[#ded6d6] bg-white">
@@ -42,13 +42,14 @@ export default function RecentTransactions({
           </thead>
 
           <tbody>
+            {transactions.length === 0 && <tr><td colSpan={6} className="p-5 text-xs">No completed transactions yet.</td></tr>}
             {transactions.map((transaction) => (
               <tr
                 key={transaction.id}
                 className="border-b border-[#ddd] text-[10px] text-black last:border-0"
               >
                 <td className="border-r border-[#ddd] px-2 py-2 font-bold">
-                  #{transaction.id}
+                  #{String(transaction.id).slice(0, 8)}
                 </td>
 
                 <td className="border-r border-[#ddd] px-2 py-2 text-[#555]">
@@ -75,8 +76,8 @@ export default function RecentTransactions({
 
                 <td className="px-2 py-2 text-center">
                   <Link
-                    to={`/sales/${transaction.id}`}
-                    aria-label={`View transaction ${transaction.id}`}
+                    to="/sales"
+                    aria-label="View sales"
                     className="inline-flex text-[#555] hover:text-black"
                   >
                     <Eye size={13} />

@@ -46,10 +46,10 @@ export const products = [
   },
 ];
 
-export const TAX_RATE = 0.085;
+export const TAX_RATE = 0;
 
 export const formatCurrency = (amount) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: "GHS",
   }).format(amount);

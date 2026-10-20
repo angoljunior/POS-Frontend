@@ -1,8 +1,8 @@
 import { AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
-import { stockAlerts } from "@/data/dashboardData";
 
-export default function StockAlerts({ alerts = stockAlerts }) {
+
+export default function StockAlerts({ alerts = [] }) {
   return (
     <section className="overflow-hidden border border-[#ded6d6] bg-white">
       <div className="flex h-[44px] items-center gap-2 border-b border-[#ddd] bg-[#f3f3f3] px-3">
@@ -11,6 +11,7 @@ export default function StockAlerts({ alerts = stockAlerts }) {
       </div>
 
       <div>
+        {alerts.length === 0 && <p className="p-3 text-xs text-gray-500">No low stock alerts.</p>}
         {alerts.map((item) => (
           <div
             key={item.id}
@@ -47,7 +48,7 @@ export default function StockAlerts({ alerts = stockAlerts }) {
           to="/inventory"
           className="text-[10px] font-bold text-black underline"
         >
-          REORDER ALL
+          VIEW INVENTORY
         </Link>
       </div>
     </section>

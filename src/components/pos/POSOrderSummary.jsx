@@ -46,7 +46,7 @@ export default function POSOrderSummary({
         )}
 
         <div className="flex justify-between text-[#555]">
-          <span>Tax (8.5%)</span>
+          <span>Tax</span>
           <span>{formatCurrency(tax)}</span>
         </div>
       </div>

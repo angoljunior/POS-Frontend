@@ -21,6 +21,7 @@ const menuItems = [
   { name: "Customers", icon: Users, path: "/customers" },
   { name: "Suppliers", icon: Truck, path: "/suppliers" },
   { name: "Sales", icon: ReceiptText, path: "/sales" },
+  { name: "Receipts", icon: ReceiptText, path: "/receipts" },
   { name: "Barcodes", icon: ReceiptText, path: "/barcodes" },
   { name: "Reports", icon: ChartColumn, path: "/reports" },
   { name: "Settings", icon: Settings, path: "/settings" },

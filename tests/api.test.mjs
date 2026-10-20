@@ -191,3 +191,94 @@ test('quantity updates use inventory ID, expected stock and audit reason', async
   };
   assert.equal((await updateInventoryQuantity(91, 0, 12, 'Physical count')).quantity, 0);
 });
+
+const { loadSales, filterSales, salesSummary, salesCSV } = await import('../src/api/salesHistory.api.js');
+
+test('sales history follows pagination and rejects malformed responses', async () => {
+  api.defaults.adapter = async (config) => ok(config, config.url === 'sales/'
+    ? { results: [{ id: 'first' }], next: 'sales/?page=2' }
+    : { results: [{ id: 'second' }], next: null });
+  assert.deepEqual((await loadSales()).map(sale => sale.id), ['first', 'second']);
+  api.defaults.adapter = async (config) => ok(config, {});
+  await assert.rejects(loadSales(), /Unexpected sales response/);
+});
+
+test('sales filters use names, SKU, status and inclusive Accra date boundaries', () => {
+  const rows = [{ id: 'one', customer_name: 'Alex', cashier_name: 'Cashier', status: 'COMPLETED', created_at: '2026-10-18T23:30:00-02:00', items: [{ product_sku: 'BEAN-001' }] }];
+  assert.equal(filterSales(rows, { search: 'bean', from: '2026-10-19', to: '2026-10-19' }).length, 1);
+  assert.equal(filterSales(rows, { status: 'PENDING' }).length, 0);
+  assert.equal(filterSales(rows, { from: '2026-10-20', to: '2026-10-19' }).length, 0);
+});
+
+test('sales summaries exclude pending/refunded totals and CSV escapes formulas', () => {
+  const rows = [{ id: 'one', customer_name: '=FORMULA', status: 'COMPLETED', total: '0.10', created_at: '2026-10-19T12:00:00Z' },
+    { id: 'two', status: 'COMPLETED', total: '0.20' }, { status: 'PENDING', total: '50.00' }, { status: 'REFUNDED', total: '20.00' }];
+  assert.deepEqual(salesSummary(rows), { count: 4, revenue: 0.3, completed: 2, average: 0.15, pending: 1 });
+  assert.ok(salesCSV(rows).includes('"\'=FORMULA"'));
+  assert.equal(salesSummary([]).average, 0);
+});
+
+import { loadReceipts, loadDashboard, receiptMatchesDate } from '../src/api/overview.api.js';
+import { calculateReceiptTotals } from '../src/data/receiptsData.js';
+test('receipts follow pagination and retain server totals and item details', async () => {
+  const row = { id: 1, receipt_number: 'R1', sale: 'sale1', issued_at: '2026-10-19T12:00:00Z', sale_details: { status: 'COMPLETED', subtotal: '10.00', discount: '1.00', tax: '0.50', total: '9.50', payment_methods: ['Cash'], items: [{ product_name: 'Tea', product_sku: 'T1', quantity: 2, unit_price: '5.00', subtotal: '10.00' }] } };
+  let calls = 0;
+  api.defaults.adapter = async (config) => ok(config, { results: [{ ...row, id: ++calls }], next: calls === 1 ? 'receipts/?page=2' : null });
+  const rows = await loadReceipts();
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].items[0].name, 'Tea');
+  assert.equal(rows[0].payment, 'Cash');
+  assert.deepEqual(calculateReceiptTotals(rows[0]), { subtotal: 10, discount: 1, taxable: 9, tax: 0.5, total: 9.5 });
+});
+test('receipt dates use current Accra calendar and inclusive seven-day window', () => {
+  const now = new Date('2026-10-19T12:00:00Z');
+  assert.equal(receiptMatchesDate('2026-10-19T00:00:00Z', 'today', now), true);
+  assert.equal(receiptMatchesDate('2026-10-13T23:00:00Z', 'week', now), true);
+  assert.equal(receiptMatchesDate('2026-10-12T23:00:00Z', 'week', now), false);
+  assert.equal(receiptMatchesDate('2026-10-20T00:00:00Z', 'week', now), false);
+});
+test('dashboard uses authenticated API and request cancellation', async () => {
+  tokenManager.setAccessToken('access');
+  const signal = new AbortController().signal;
+  api.defaults.adapter = async (config) => {
+    assert.equal(config.url, 'dashboard/summary/');
+    assert.equal(config.signal, signal);
+    assert.equal(config.headers.Authorization, 'Bearer access');
+    return ok(config, { transactions: 3 });
+  };
+  assert.equal((await loadDashboard(signal)).transactions, 3);
+});
+
+import { checkoutApi, checkoutCompleted } from '../src/api/checkout.api.js';
+test('checkout customer search forwards query and registration returns customer ID', async () => {
+  api.defaults.adapter = async (config) => {
+    assert.equal(config.url, 'customers/');
+    assert.equal(config.params.search, '024');
+    return ok(config, { results: [{ id: 9, first_name: 'Ama', phone: '0241234567' }] });
+  };
+  assert.equal((await checkoutApi.customers('024'))[0].id, 9);
+});
+test('checkout sends exact idempotency key, selected customer and tender without computed totals', async () => {
+  const payload = { idempotency_key: 'fixed-key', items: [{ product_id: 1, quantity: 2 }], customer_id: 9, method: 'CASH', cash_received: '10.00' };
+  let calls = 0;
+  api.defaults.adapter = async (config) => {
+    assert.equal(config.url, 'sales/checkout/');
+    assert.deepEqual(JSON.parse(config.data), payload);
+    calls++;
+    return ok(config, { id: 5, status: 'PENDING', payments: [{ status: 'PENDING' }] });
+  };
+  assert.equal(checkoutCompleted(await checkoutApi.submit(payload)), false);
+  await checkoutApi.submit(payload);
+  assert.equal(calls, 2);
+  assert.equal(checkoutCompleted({ status: 'COMPLETED', payments: [{ status: 'SUCCESS' }] }), false);
+  assert.equal(checkoutCompleted({ status: 'COMPLETED', receipt_id: 7, payments: [{ status: 'SUCCESS' }] }), true);
+});
+test('payment verification and refunds use backend confirmation endpoints', async () => {
+  const urls = [];
+  api.defaults.adapter = async (config) => { urls.push([config.method, config.url]); return ok(config, {}); };
+  await checkoutApi.status(3, true);
+  await checkoutApi.confirmTransfer(3, 'BANK-1');
+  await checkoutApi.refund({ idempotency_key: 'refund-key' });
+  await checkoutApi.reconcileRefund('refund-id');
+  assert.deepEqual(urls, [['post','checkout/payments/3/'], ['post','checkout/payments/3/confirm-transfer/'], ['post','checkout/refunds/'], ['post','checkout/refunds/refund-id/reconcile/']]);
+});
